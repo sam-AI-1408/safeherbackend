@@ -1,0 +1,533 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  STUDENT
+  HOD
+  WOMEN_SAFETY_OFFICER
+  PRINCIPAL
+  AUTHORIZED_STAFF
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum SensitivityLevel {
+  NORMAL
+  CONFIDENTIAL
+  RESTRICTED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ComplaintStatus {
+  SUBMITTED
+  RECEIVED
+  UNDER_REVIEW
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  REOPENED
+  CLOSED
+  REJECTED
+}
+
+enum EscalationLevel {
+  NONE
+  LEVEL_1
+  LEVEL_2
+  LEVEL_3
+}
+
+enum RoutingTarget {
+  WOMEN_SAFETY_OFFICER
+  HOD
+  FACILITIES_MAINTENANCE
+  HOSTEL_WARDEN
+  IMMEDIATE_RESPONDER
+}
+
+enum SosStatus {
+  TRIGGERED
+  ACKNOWLEDGED
+  RESOLVED
+  FALSE_ALARM
+}
+
+enum ResourceCategory {
+  LEGAL_RIGHTS
+  INSTITUTIONAL_POLICY
+  EMERGENCY_HELPLINE
+  SUPPORT_GUIDE
+}
+
+enum DevicePlatform {
+  ANDROID
+  IOS
+  WEB
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  COMPLAINT_CREATED
+  COMPLAINT_STATUS_UPDATED
+  COMPLAINT_ASSIGNED
+  COMPLAINT_RESOLVED
+  COMPLAINT_CLOSED
+  COMPLAINT_REJECTED
+  COMPLAINT_REOPENED
+  COMPLAINT_TRANSFERRED
+  TASK_ASSIGNED
+  SYSTEM
+}
+
+model User {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  phone         String?
+  passwordHash  String      @map("password_hash")
+  name          String
+  role          Role        @default(STUDENT)
+  departmentId  String?     @map("department_id")
+  status        UserStatus  @default(ACTIVE)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  department    Department? @relation("DepartmentMembers", fields: [departmentId], references: [id])
+  headOfDept    Department? @relation("DepartmentHead")
+  
+  complaintsSubmitted  Complaint[] @relation("StudentComplaints")
+  complaintsAssigned   Complaint[] @relation("AssignedComplaints")
+  statusChanges        ComplaintStatusHistory[]
+  assignmentsMade      ComplaintAssignment[] @relation("AssignmentsMade")
+  assignmentsReceived  ComplaintAssignment[] @relation("AssignmentsReceived")
+  caseGrantsGiven      CaseAccessGrant[] @relation("GrantsGiven")
+  caseGrantsReceived   CaseAccessGrant[] @relation("GrantsReceived")
+  caseNotes            InternalCaseNote[]
+  attachmentsUploaded  Attachment[]
+  sosEvents            EmergencySosEvent[]
+  sosResponses         SosResponder[]
+  feedbacks            Feedback[]
+  sessions             Session[]
+  deviceTokens         DeviceToken[]
+  auditLogs            AuditLog[]
+  notifications        Notification[]
+  tasksAssigned        Task[] @relation("TasksAssignedTo")
+  tasksCreated         Task[] @relation("TasksCreatedBy")
+  transfersExecuted    ComplaintTransfer[]
+
+  @@index([role])
+  @@index([departmentId])
+  @@index([status])
+  @@map("users")
+}
+
+model Session {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  refreshTokenHash String    @map("refresh_token_hash")
+  deviceInfo       String?   @map("device_info")
+  ipAddress        String?   @map("ip_address")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+  @@map("sessions")
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique
+  hodUserId   String?  @unique @map("hod_user_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  hodUser       User?       @relation("DepartmentHead", fields: [hodUserId], references: [id])
+  members       User[]      @relation("DepartmentMembers")
+  locations     Location[]
+  complaints    Complaint[]
+  tasks         Task[]
+  transfersFrom ComplaintTransfer[] @relation("TransfersFrom")
+  transfersTo   ComplaintTransfer[] @relation("TransfersTo")
+
+  @@map("departments")
+}
+
+model Location {
+  id             String   @id @default(uuid())
+  building       String
+  floor          String?
+  roomIdentifier String   @map("room_identifier")
+  qrSignature    String?  @unique @map("qr_signature")
+  departmentId   String?  @map("department_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  department  Department? @relation(fields: [departmentId], references: [id])
+  complaints  Complaint[]
+
+  @@index([building])
+  @@index([departmentId])
+  @@map("locations")
+}
+
+model ComplaintCategory {
+  id               String           @id @default(uuid())
+  name             String
+  code             String           @unique
+  isWomensSafety   Boolean          @default(false) @map("is_womens_safety")
+  sensitivityLevel SensitivityLevel @default(NORMAL) @map("sensitivity_level")
+  defaultPriority  Priority         @default(MEDIUM) @map("default_priority")
+  defaultSlaHours  Int              @default(48) @map("default_sla_hours")
+  routingTarget    RoutingTarget    @default(HOD) @map("routing_target")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  complaints Complaint[]
+
+  @@index([isWomensSafety])
+  @@index([sensitivityLevel])
+  @@map("complaint_categories")
+}
+
+model Complaint {
+  id                    String           @id @default(uuid())
+  publicComplaintNumber String           @unique @map("public_complaint_number")
+  studentId             String           @map("student_id")
+  categoryId            String           @map("category_id")
+  departmentId          String?          @map("department_id")
+  locationId            String           @map("location_id")
+  description           String
+  priority              Priority         @default(MEDIUM)
+  confidentialityLevel  SensitivityLevel @default(NORMAL) @map("confidentiality_level")
+  status                ComplaintStatus  @default(SUBMITTED)
+  escalationLevel       EscalationLevel  @default(NONE) @map("escalation_level")
+  assignedTo            String?          @map("assigned_to")
+  isLegalHold           Boolean          @default(false) @map("is_legal_hold")
+  resolutionSummary     String?          @map("resolution_summary")
+  resolutionPhotoKey    String?          @map("resolution_photo_key")
+  resolutionApologyKey  String?          @map("resolution_apology_key")
+  resolutionVideoKey    String?          @map("resolution_video_key")
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
+  resolvedAt            DateTime?        @map("resolved_at")
+  closedAt              DateTime?        @map("closed_at")
+
+  student        User                     @relation("StudentComplaints", fields: [studentId], references: [id])
+  category       ComplaintCategory        @relation(fields: [categoryId], references: [id])
+  department     Department?              @relation(fields: [departmentId], references: [id])
+  location       Location                 @relation(fields: [locationId], references: [id])
+  assignedUser   User?                    @relation("AssignedComplaints", fields: [assignedTo], references: [id])
+  
+  statusHistory  ComplaintStatusHistory[]
+  assignments    ComplaintAssignment[]
+  accessGrants   CaseAccessGrant[]
+  internalNotes  InternalCaseNote[]
+  attachments    Attachment[]
+  feedback       Feedback?
+  transfers      ComplaintTransfer[]
+  notifications  Notification[]
+  tasks          Task[]
+
+  @@index([studentId])
+  @@index([categoryId])
+  @@index([departmentId])
+  @@index([status])
+  @@index([priority])
+  @@index([confidentialityLevel])
+  @@index([assignedTo])
+  @@index([createdAt])
+  @@map("complaints")
+}
+
+model ComplaintStatusHistory {
+  id              String          @id @default(uuid())
+  complaintId     String          @map("complaint_id")
+  oldStatus       ComplaintStatus @map("old_status")
+  newStatus       ComplaintStatus @map("new_status")
+  changedByUserId String          @map("changed_by_user_id")
+  reasonComment   String?         @map("reason_comment")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  changedBy User      @relation(fields: [changedByUserId], references: [id])
+
+  @@index([complaintId])
+  @@map("complaint_status_history")
+}
+
+model ComplaintAssignment {
+  id               String   @id @default(uuid())
+  complaintId      String   @map("complaint_id")
+  assignedByUserId String   @map("assigned_by_user_id")
+  assignedToUserId String   @map("assigned_to_user_id")
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  complaint  Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  assignedBy User      @relation("AssignmentsMade", fields: [assignedByUserId], references: [id])
+  assignedTo User      @relation("AssignmentsReceived", fields: [assignedToUserId], references: [id])
+
+  @@index([complaintId])
+  @@map("complaint_assignments")
+}
+
+model ComplaintTransfer {
+  id                     String   @id @default(uuid())
+  complaintId            String   @map("complaint_id")
+  sourceDepartmentId     String?  @map("source_department_id")
+  destinationDepartmentId String   @map("destination_department_id")
+  transferredByUserId    String   @map("transferred_by_user_id")
+  reason                 String
+  createdAt              DateTime @default(now()) @map("created_at")
+
+  complaint             Complaint   @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  sourceDepartment      Department? @relation("TransfersFrom", fields: [sourceDepartmentId], references: [id])
+  destinationDepartment Department  @relation("TransfersTo", fields: [destinationDepartmentId], references: [id])
+  transferredBy         User        @relation(fields: [transferredByUserId], references: [id])
+
+  @@index([complaintId])
+  @@map("complaint_transfers")
+}
+
+model Task {
+  id               String     @id @default(uuid())
+  title            String
+  description      String?
+  complaintId      String?    @map("complaint_id")
+  departmentId     String?    @map("department_id")
+  assignedToUserId String?    @map("assigned_to_user_id")
+  createdByUserId  String     @map("created_by_user_id")
+  priority         Priority   @default(MEDIUM)
+  status           TaskStatus @default(TODO)
+  dueDate          DateTime?  @map("due_date")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  complaint   Complaint?  @relation(fields: [complaintId], references: [id], onDelete: SetNull)
+  department  Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  assignedTo  User?       @relation("TasksAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  createdBy   User        @relation("TasksCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([departmentId])
+  @@index([assignedToUserId])
+  @@index([status])
+  @@map("tasks")
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  userId      String           @map("user_id")
+  title       String
+  message     String
+  type        NotificationType @default(SYSTEM)
+  complaintId String?          @map("complaint_id")
+  isRead      Boolean          @default(false) @map("is_read")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  complaint Complaint? @relation(fields: [complaintId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+model CaseAccessGrant {
+  id              String    @id @default(uuid())
+  complaintId     String    @map("complaint_id")
+  grantedToUserId String    @map("granted_to_user_id")
+  grantedByUserId String    @map("granted_by_user_id")
+  reason          String
+  expiresAt       DateTime  @map("expires_at")
+  revokedAt       DateTime? @map("revoked_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  grantedTo User      @relation("GrantsReceived", fields: [grantedToUserId], references: [id])
+  grantedBy User      @relation("GrantsGiven", fields: [grantedByUserId], references: [id])
+
+  @@index([complaintId])
+  @@index([grantedToUserId])
+  @@map("case_access_grants")
+}
+
+model InternalCaseNote {
+  id            String   @id @default(uuid())
+  complaintId   String   @map("complaint_id")
+  authorUserId  String   @map("author_user_id")
+  encryptedNote String   @map("encrypted_note")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorUserId], references: [id])
+
+  @@index([complaintId])
+  @@map("internal_case_notes")
+}
+
+model Attachment {
+  id               String   @id @default(uuid())
+  complaintId      String   @map("complaint_id")
+  storageKey       String   @unique @map("storage_key")
+  originalFileName String   @map("original_file_name")
+  mimeType         String   @map("mime_type")
+  fileSizeBytes    Int      @map("file_size_bytes")
+  uploadedByUserId String   @map("uploaded_by_user_id")
+  isDeleted        Boolean  @default(false) @map("is_deleted")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  complaint  Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  uploadedBy User      @relation(fields: [uploadedByUserId], references: [id])
+
+  @@index([complaintId])
+  @@map("attachments")
+}
+
+model EmergencySosEvent {
+  id             String    @id @default(uuid())
+  studentId      String    @map("student_id")
+  latitude       Decimal?  @db.Decimal(10, 8)
+  longitude      Decimal?  @db.Decimal(11, 8)
+  accuracyMeters Decimal?  @map("accuracy_meters") @db.Decimal(6, 2)
+  status         SosStatus @default(TRIGGERED)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  resolvedAt     DateTime? @map("resolved_at")
+
+  student    User           @relation(fields: [studentId], references: [id])
+  responders SosResponder[]
+
+  @@index([studentId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("emergency_sos_events")
+}
+
+model SosResponder {
+  id              String    @id @default(uuid())
+  sosEventId      String    @map("sos_event_id")
+  responderUserId String    @map("responder_user_id")
+  notifiedAt      DateTime  @default(now()) @map("notified_at")
+  acknowledgedAt  DateTime? @map("acknowledged_at")
+  actionTaken     String?   @map("action_taken")
+
+  sosEvent  EmergencySosEvent @relation(fields: [sosEventId], references: [id], onDelete: Cascade)
+  responder User              @relation(fields: [responderUserId], references: [id])
+
+  @@index([sosEventId])
+  @@index([responderUserId])
+  @@map("sos_responders")
+}
+
+model EmergencyContact {
+  id            String   @id @default(uuid())
+  name          String
+  roleTitle     String   @map("role_title")
+  phoneNumber   String   @map("phone_number")
+  priorityOrder Int      @default(1) @map("priority_order")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([isActive])
+  @@index([priorityOrder])
+  @@map("emergency_contacts")
+}
+
+model InstitutionSetting {
+  id                    String   @id @default(uuid())
+  key                   String   @unique
+  valueJson             Json     @map("value_json")
+  operatingCalendarJson Json?    @map("operating_calendar_json")
+  lastUpdatedBy         String?  @map("last_updated_by")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("institution_settings")
+}
+
+model SafetyResource {
+  id               String           @id @default(uuid())
+  category         ResourceCategory
+  title            String
+  contentMarkdown  String           @map("content_markdown")
+  sourceReference  String?          @map("source_reference")
+  lastReviewedDate DateTime?        @map("last_reviewed_date")
+  isActive         Boolean          @default(true) @map("is_active")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@index([isActive])
+  @@map("safety_resources")
+}
+
+model Feedback {
+  id          String   @id @default(uuid())
+  complaintId String   @unique @map("complaint_id")
+  studentId   String   @map("student_id")
+  rating      Int      @db.SmallInt
+  comments    String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  student   User      @relation(fields: [studentId], references: [id])
+
+  @@map("feedback")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?  @map("actor_user_id")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String?  @map("entity_id")
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([actorUserId])
+  @@index([action])
+  @@index([entityType])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model DeviceToken {
+  id         String         @id @default(uuid())
+  userId     String         @map("user_id")
+  token      String         @unique
+  platform   DevicePlatform @default(ANDROID)
+  lastSeenAt DateTime       @default(now()) @map("last_seen_at")
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
+}
