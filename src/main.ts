@@ -11,7 +11,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('PORT') || 3000;
+  const port = Number(process.env.PORT || configService.get<number>('PORT') || 3000);
   const apiPrefix = configService.get<string>('API_PREFIX') || 'api/v1';
 
   // 1. Security Headers via Helmet
