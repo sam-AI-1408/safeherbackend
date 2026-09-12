@@ -60,3 +60,43 @@ export class RefreshTokenDto {
   @IsNotEmpty()
   refreshToken: string;
 }
+
+export class UpdateProfileDto {
+  @ApiPropertyOptional({ example: 'Priya Sharma', description: 'Updated user name' })
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @ApiPropertyOptional({ example: '+919876543201', description: 'Updated contact phone' })
+  @IsString()
+  @IsOptional()
+  phone?: string;
+}
+
+export class ChangePasswordDto {
+  @ApiProperty({ description: 'Current password for verification' })
+  @IsString()
+  @IsNotEmpty()
+  currentPassword: string;
+
+  @ApiProperty({ description: 'New strong password' })
+  @IsString()
+  @MinLength(8, { message: 'New password must be at least 8 characters long' })
+  @Matches(/((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, {
+    message: 'New password must contain uppercase letters, lowercase letters, and at least one number or symbol',
+  })
+  newPassword: string;
+}
+
+export class ChangeEmailDto {
+  @ApiProperty({ description: 'Current password for verification' })
+  @IsString()
+  @IsNotEmpty()
+  currentPassword: string;
+
+  @ApiProperty({ example: 'new.email@safeher.test', description: 'New verified institutional email' })
+  @IsEmail({}, { message: 'Must provide a valid email address' })
+  @IsNotEmpty()
+  newEmail: string;
+}
+

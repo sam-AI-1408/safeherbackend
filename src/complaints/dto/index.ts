@@ -119,3 +119,31 @@ export class SubmitFeedbackDto {
   @IsOptional()
   comments?: string;
 }
+
+export class ScheduleComplaintDto {
+  @ApiProperty({ example: '2026-09-15', description: 'Scheduled action date (YYYY-MM-DD)' })
+  @IsString()
+  @IsNotEmpty()
+  date: string;
+
+  @ApiProperty({ example: '10:30 AM', description: 'Scheduled action time' })
+  @IsString()
+  @IsNotEmpty()
+  time: string;
+
+  @ApiProperty({ example: 'Campus Inspection & Culprit Verification', description: 'Scheduled task/action type' })
+  @IsString()
+  @IsNotEmpty()
+  actionType: string;
+
+  @ApiPropertyOptional({ description: 'Assigned faculty user ID' })
+  @IsString()
+  @IsOptional()
+  assignedFacultyId?: string;
+
+  @ApiPropertyOptional({ description: 'Investigation instructions or agenda notes' })
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+

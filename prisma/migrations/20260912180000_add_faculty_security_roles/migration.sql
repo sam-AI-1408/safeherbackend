@@ -1,0 +1,3 @@
+-- Non-destructive migration to add FACULTY and SECURITY to Role enum
+ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'FACULTY';
+ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'SECURITY';

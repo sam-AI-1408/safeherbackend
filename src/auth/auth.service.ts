@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { RegisterDto, LoginDto, RefreshTokenDto } from './dto';
+import { RegisterDto, LoginDto, RefreshTokenDto, UpdateProfileDto, ChangePasswordDto, ChangeEmailDto } from './dto';
 import { Role, UserStatus } from '../common/enums';
 import { JwtPayload } from './strategies/jwt.strategy';
 
@@ -310,6 +310,118 @@ export class AuthService {
         role: user.role,
         departmentId: user.departmentId || undefined,
       },
+    };
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto, clientIp?: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('User not found');
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.name ? { name: dto.name.trim() } : {}),
+        ...(dto.phone ? { phone: dto.phone.trim() } : {}),
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        role: true,
+        department: true,
+        createdAt: true,
+      },
+    });
+
+    await this.auditService.log({
+      actorUserId: userId,
+      action: 'PROFILE_UPDATED',
+      entityType: 'User',
+      entityId: userId,
+      ipAddress: clientIp,
+      metadata: { name: dto.name, phone: dto.phone },
+    });
+
+    return updated;
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto, clientIp?: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('User not found');
+
+    const isMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!isMatch) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const newPasswordHash = await bcrypt.hash(dto.newPassword, this.saltRounds);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash: newPasswordHash },
+      }),
+      this.prisma.session.deleteMany({
+        where: { userId },
+      }),
+    ]);
+
+    await this.auditService.log({
+      actorUserId: userId,
+      action: 'PASSWORD_CHANGED',
+      entityType: 'User',
+      entityId: userId,
+      ipAddress: clientIp,
+    });
+
+    return { message: 'Password changed successfully. Please log in again with your new password.' };
+  }
+
+  async changeEmail(userId: string, dto: ChangeEmailDto, clientIp?: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('User not found');
+
+    const isMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!isMatch) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const targetEmail = dto.newEmail.toLowerCase().trim();
+    if (targetEmail === user.email.toLowerCase()) {
+      throw new BadRequestException('New email cannot be identical to current email');
+    }
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email: targetEmail },
+    });
+    if (existing) {
+      throw new ConflictException('An account with this email address already exists');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { email: targetEmail },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+      },
+    });
+
+    await this.auditService.log({
+      actorUserId: userId,
+      action: 'EMAIL_CHANGED',
+      entityType: 'User',
+      entityId: userId,
+      ipAddress: clientIp,
+      metadata: { oldEmail: user.email, newEmail: targetEmail },
+    });
+
+    return {
+      message: 'Email address updated successfully.',
+      user: updated,
     };
   }
 }

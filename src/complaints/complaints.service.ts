@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { CreateComplaintDto, UpdateComplaintStatusDto, AssignComplaintDto, ReopenComplaintDto, SubmitFeedbackDto, TransferComplaintDto } from './dto';
-import { Role, ComplaintStatus, SensitivityLevel, Priority, NotificationType } from '../common/enums';
+import { CreateComplaintDto, UpdateComplaintStatusDto, AssignComplaintDto, ReopenComplaintDto, SubmitFeedbackDto, TransferComplaintDto, ScheduleComplaintDto } from './dto';
+import { Role, ComplaintStatus, SensitivityLevel, Priority, NotificationType, TaskStatus } from '../common/enums';
 
 @Injectable()
 export class ComplaintsService {
@@ -138,6 +138,18 @@ export class ComplaintsService {
       case Role.ADMIN:
         whereClause = {};
         break;
+
+      case Role.FACULTY:
+        whereClause = {
+          OR: [
+            { assignedTo: userId },
+            ...(departmentId ? [{ departmentId, confidentialityLevel: { not: SensitivityLevel.RESTRICTED } }] : []),
+          ],
+        };
+        break;
+
+      case Role.SECURITY:
+        throw new ForbiddenException('Campus Security accounts do not have access to academic grievance complaints. Please use the Emergency SOS console.');
 
       case Role.AUTHORIZED_STAFF:
         whereClause = {
@@ -291,9 +303,24 @@ export class ComplaintsService {
       throw new NotFoundException('Complaint not found');
     }
 
+    // ABAC Security Check: Security cannot access academic complaints
+    if (role === Role.SECURITY) {
+      throw new ForbiddenException('Campus Security accounts do not have access to academic grievance complaints');
+    }
+
     // ABAC Security Check: Student can only access their own
     if (role === Role.STUDENT && complaint.studentId !== userId) {
       throw new ForbiddenException('You are not authorized to view this complaint');
+    }
+
+    // ABAC Security Check: Faculty can only access assigned or departmental complaints
+    if (role === Role.FACULTY) {
+      if (complaint.confidentialityLevel === SensitivityLevel.RESTRICTED) {
+        throw new ForbiddenException('Restricted complaints can only be accessed by designated Women Safety Officers');
+      }
+      if (complaint.assignedTo !== userId && complaint.departmentId !== departmentId) {
+        throw new ForbiddenException('You are only authorized to view complaints assigned to you or within your department');
+      }
     }
 
     // ABAC Security Check: HOD can only access their own department's complaints
@@ -704,8 +731,24 @@ export class ComplaintsService {
   }
 
   async assign(id: string, assignedByUserId: string, dto: AssignComplaintDto, clientIp?: string) {
-    const complaint = await this.prisma.complaint.findUnique({ where: { id } });
+    const complaint = await this.prisma.complaint.findUnique({
+      where: { id },
+      include: { department: true },
+    });
     if (!complaint) throw new NotFoundException('Complaint not found');
+
+    const assigner = await this.prisma.user.findUnique({ where: { id: assignedByUserId } });
+    if (!assigner) throw new UnauthorizedException('Assigner user not found');
+
+    const assignee = await this.prisma.user.findUnique({ where: { id: dto.assignedToUserId } });
+    if (!assignee) throw new NotFoundException('Assignee user not found');
+
+    // HOD strict department boundary check
+    if (assigner.role === Role.HOD) {
+      if (assigner.departmentId && assignee.departmentId && assignee.departmentId !== assigner.departmentId) {
+        throw new ForbiddenException('HOD can only assign complaints to faculty members within their own department');
+      }
+    }
 
     await this.prisma.complaintAssignment.create({
       data: {
@@ -727,12 +770,34 @@ export class ComplaintsService {
       },
     });
 
-    // Notify assigned user
+    // Record timeline step for student tracking
+    await this.prisma.complaintStatusHistory.create({
+      data: {
+        complaintId: id,
+        oldStatus: complaint.status,
+        newStatus: ComplaintStatus.ASSIGNED,
+        changedByUserId: assignedByUserId,
+        reasonComment: `Assigned to ${assignee.name} (${assignee.role}). Instructions: ${dto.notes || 'Handle as per standard protocol'}`,
+      },
+    });
+
+    // Notify assigned faculty
     await this.prisma.notification.create({
       data: {
         userId: dto.assignedToUserId,
         title: 'New Complaint Assigned',
-        message: `You have been assigned to handle complaint ${complaint.publicComplaintNumber}.`,
+        message: `You have been assigned to investigate complaint ${complaint.publicComplaintNumber}.`,
+        type: NotificationType.COMPLAINT_ASSIGNED as any,
+        complaintId: id,
+      },
+    });
+
+    // Notify student
+    await this.prisma.notification.create({
+      data: {
+        userId: complaint.studentId,
+        title: 'Complaint Assigned',
+        message: `Your grievance ${complaint.publicComplaintNumber} has been assigned to ${assignee.name} for investigation.`,
         type: NotificationType.COMPLAINT_ASSIGNED as any,
         complaintId: id,
       },
@@ -748,6 +813,104 @@ export class ComplaintsService {
     });
 
     return updated;
+  }
+
+  async schedule(
+    id: string,
+    scheduledByUserId: string,
+    role: Role,
+    dto: ScheduleComplaintDto,
+    clientIp?: string,
+  ) {
+    if (role === Role.STUDENT || role === Role.SECURITY) {
+      throw new ForbiddenException('You are not authorized to schedule complaint investigations');
+    }
+
+    const complaint = await this.prisma.complaint.findUnique({
+      where: { id },
+      include: { department: true },
+    });
+    if (!complaint) throw new NotFoundException('Complaint not found');
+
+    const scheduler = await this.prisma.user.findUnique({ where: { id: scheduledByUserId } });
+
+    let assignedFacultyUser = null;
+    if (dto.assignedFacultyId) {
+      assignedFacultyUser = await this.prisma.user.findUnique({ where: { id: dto.assignedFacultyId } });
+    }
+
+    const scheduledDateTimeStr = `${dto.date} ${dto.time}`;
+    const parsedDueDate = new Date(dto.date);
+
+    // Create a Task linked to this complaint
+    const task = await this.prisma.task.create({
+      data: {
+        title: `Investigation: ${dto.actionType} - ${complaint.publicComplaintNumber}`,
+        description: `Scheduled action for complaint ${complaint.publicComplaintNumber}.\nAction Type: ${dto.actionType}\nDate/Time: ${scheduledDateTimeStr}\nNotes: ${dto.notes || 'Standard inquiry'}`,
+        complaintId: id,
+        departmentId: complaint.departmentId || scheduler?.departmentId || undefined,
+        assignedToUserId: dto.assignedFacultyId || complaint.assignedTo || scheduledByUserId,
+        createdByUserId: scheduledByUserId,
+        dueDate: isNaN(parsedDueDate.getTime()) ? new Date() : parsedDueDate,
+        priority: complaint.priority,
+        status: TaskStatus.TODO,
+      },
+    });
+
+    // Record timeline event for student and administration
+    const facultyLabel = assignedFacultyUser ? ` Assigned to: ${assignedFacultyUser.name}.` : '';
+    await this.prisma.complaintStatusHistory.create({
+      data: {
+        complaintId: id,
+        oldStatus: complaint.status,
+        newStatus: complaint.status,
+        changedByUserId: scheduledByUserId,
+        reasonComment: `Investigation scheduled: ${dto.actionType} on ${dto.date} at ${dto.time}.${facultyLabel}`,
+      },
+    });
+
+    // Notify student (clean message without internal notes)
+    await this.prisma.notification.create({
+      data: {
+        userId: complaint.studentId,
+        title: 'Investigation Scheduled',
+        message: `An official investigation (${dto.actionType}) has been scheduled for your grievance ${complaint.publicComplaintNumber} on ${dto.date} at ${dto.time}.`,
+        type: NotificationType.SYSTEM as any,
+        complaintId: id,
+      },
+    });
+
+    // Notify assigned faculty if applicable
+    if (dto.assignedFacultyId && dto.assignedFacultyId !== scheduledByUserId) {
+      await this.prisma.notification.create({
+        data: {
+          userId: dto.assignedFacultyId,
+          title: 'Scheduled Action Item Assigned',
+          message: `You have been scheduled for ${dto.actionType} on ${dto.date} at ${dto.time} regarding complaint ${complaint.publicComplaintNumber}.`,
+          type: NotificationType.TASK_ASSIGNED as any,
+          complaintId: id,
+        },
+      });
+    }
+
+    await this.auditService.log({
+      actorUserId: scheduledByUserId,
+      action: 'COMPLAINT_SCHEDULED',
+      entityType: 'Complaint',
+      entityId: id,
+      ipAddress: clientIp,
+      metadata: {
+        actionType: dto.actionType,
+        date: dto.date,
+        time: dto.time,
+        assignedFacultyId: dto.assignedFacultyId,
+      },
+    });
+
+    return {
+      message: 'Investigation scheduled successfully.',
+      task,
+    };
   }
 
   async getCategories() {

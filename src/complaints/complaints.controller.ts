@@ -2,7 +2,7 @@ import { Controller, Post, Get, Patch, Body, Param, Req, UseGuards } from '@nest
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
 import { ComplaintsService } from './complaints.service';
-import { CreateComplaintDto, UpdateComplaintStatusDto, AssignComplaintDto, TransferComplaintDto, ReopenComplaintDto, SubmitFeedbackDto } from './dto';
+import { CreateComplaintDto, UpdateComplaintStatusDto, AssignComplaintDto, TransferComplaintDto, ReopenComplaintDto, SubmitFeedbackDto, ScheduleComplaintDto } from './dto';
 import { CurrentUser, Roles } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -78,7 +78,7 @@ export class ComplaintsController {
   }
 
   @Patch(':id/status')
-  @Roles(Role.HOD, Role.WOMEN_SAFETY_OFFICER, Role.PRINCIPAL, Role.AUTHORIZED_STAFF, Role.ADMIN)
+  @Roles(Role.HOD, Role.FACULTY, Role.WOMEN_SAFETY_OFFICER, Role.PRINCIPAL, Role.AUTHORIZED_STAFF, Role.ADMIN)
   @ApiOperation({ summary: 'Update complaint status in resolution workflow (PATCH)' })
   @ApiResponse({ status: 200, description: 'Complaint status updated' })
   async updateStatus(
@@ -93,7 +93,7 @@ export class ComplaintsController {
   }
 
   @Post(':id/status')
-  @Roles(Role.HOD, Role.WOMEN_SAFETY_OFFICER, Role.PRINCIPAL, Role.AUTHORIZED_STAFF, Role.ADMIN)
+  @Roles(Role.HOD, Role.FACULTY, Role.WOMEN_SAFETY_OFFICER, Role.PRINCIPAL, Role.AUTHORIZED_STAFF, Role.ADMIN)
   @ApiOperation({ summary: 'Update complaint status in resolution workflow (POST alias)' })
   @ApiResponse({ status: 200, description: 'Complaint status updated' })
   async updateStatusPost(
@@ -175,5 +175,20 @@ export class ComplaintsController {
   ) {
     const clientIp = req.ip || req.socket.remoteAddress;
     return this.complaintsService.assign(id, userId, dto, clientIp);
+  }
+
+  @Post(':id/schedule')
+  @Roles(Role.HOD, Role.FACULTY, Role.WOMEN_SAFETY_OFFICER, Role.PRINCIPAL, Role.ADMIN)
+  @ApiOperation({ summary: 'Schedule an investigation action, inspection, or hearing' })
+  @ApiResponse({ status: 201, description: 'Investigation scheduled and linked task created' })
+  async schedule(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('role') role: Role,
+    @Body() dto: ScheduleComplaintDto,
+    @Req() req: Request,
+  ) {
+    const clientIp = req.ip || req.socket.remoteAddress;
+    return this.complaintsService.schedule(id, userId, role, dto, clientIp);
   }
 }

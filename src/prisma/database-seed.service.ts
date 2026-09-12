@@ -118,6 +118,20 @@ export class DatabaseSeedService implements OnModuleInit {
           role: Role.PRINCIPAL,
           departmentId: deptMap['ADMIN_DEPT'],
         },
+        {
+          email: 'faculty@safeher.test',
+          name: 'Prof. Ananya Sengupta',
+          phone: '+919876543240',
+          role: Role.FACULTY,
+          departmentId: deptMap['CSE'],
+        },
+        {
+          email: 'security@safeher.test',
+          name: 'Officer Vikram Singh',
+          phone: '+919876543250',
+          role: Role.SECURITY,
+          departmentId: deptMap['SECURITY'],
+        },
       ];
 
       for (const user of demoUsers) {

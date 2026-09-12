@@ -29,7 +29,7 @@ export class EmergencyController {
   }
 
   @Get('active')
-  @Roles(Role.PRINCIPAL, Role.HOD, Role.WOMEN_SAFETY_OFFICER, Role.AUTHORIZED_STAFF, Role.ADMIN)
+  @Roles(Role.PRINCIPAL, Role.HOD, Role.WOMEN_SAFETY_OFFICER, Role.SECURITY, Role.AUTHORIZED_STAFF, Role.ADMIN)
   @ApiOperation({ summary: 'View active SOS emergency distress events (Responders & Authorities)' })
   @ApiResponse({ status: 200, description: 'List of active emergency distress events' })
   async getActiveEvents() {
@@ -37,7 +37,7 @@ export class EmergencyController {
   }
 
   @Patch('sos/:id/acknowledge')
-  @Roles(Role.PRINCIPAL, Role.HOD, Role.WOMEN_SAFETY_OFFICER, Role.AUTHORIZED_STAFF, Role.ADMIN)
+  @Roles(Role.PRINCIPAL, Role.HOD, Role.WOMEN_SAFETY_OFFICER, Role.SECURITY, Role.AUTHORIZED_STAFF, Role.ADMIN)
   @ApiOperation({ summary: 'Acknowledge an active SOS event and log response action' })
   @ApiResponse({ status: 200, description: 'SOS acknowledged by authorized responder' })
   async acknowledgeSos(
@@ -48,5 +48,27 @@ export class EmergencyController {
   ) {
     const clientIp = req.ip || req.socket.remoteAddress;
     return this.emergencyService.acknowledgeSos(eventId, userId, dto, clientIp);
+  }
+
+  @Patch('sos/:id/resolve')
+  @Roles(Role.PRINCIPAL, Role.HOD, Role.WOMEN_SAFETY_OFFICER, Role.SECURITY, Role.AUTHORIZED_STAFF, Role.ADMIN)
+  @ApiOperation({ summary: 'Resolve an emergency distress incident with notes' })
+  @ApiResponse({ status: 200, description: 'SOS incident resolved' })
+  async resolveSos(
+    @Param('id') eventId: string,
+    @CurrentUser('userId') userId: string,
+    @Body() body: { notes?: string },
+    @Req() req: Request,
+  ) {
+    const clientIp = req.ip || req.socket.remoteAddress;
+    return this.emergencyService.resolveSos(eventId, userId, body?.notes, clientIp);
+  }
+
+  @Get('history')
+  @Roles(Role.PRINCIPAL, Role.HOD, Role.WOMEN_SAFETY_OFFICER, Role.SECURITY, Role.AUTHORIZED_STAFF, Role.ADMIN)
+  @ApiOperation({ summary: 'List historical SOS emergency incidents' })
+  @ApiResponse({ status: 200, description: 'Historical emergency incidents' })
+  async getHistory() {
+    return this.emergencyService.getSosHistory();
   }
 }

@@ -24,4 +24,11 @@ export class DepartmentsController {
   async findOne(@Param('id') id: string) {
     return this.departmentsService.findOne(id);
   }
+
+  @Get(':id/faculty')
+  @ApiOperation({ summary: 'List active faculty members for assignment in this department' })
+  @ApiResponse({ status: 200, description: 'List of faculty members' })
+  async getFaculty(@Param('id') id: string) {
+    return this.departmentsService.getFaculty(id);
+  }
 }

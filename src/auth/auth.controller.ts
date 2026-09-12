@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Req,
   HttpCode,
@@ -11,7 +12,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AuthService, AuthTokens } from './auth.service';
-import { RegisterDto, LoginDto, RefreshTokenDto } from './dto';
+import { RegisterDto, LoginDto, RefreshTokenDto, UpdateProfileDto, ChangePasswordDto, ChangeEmailDto } from './dto';
 import { Public, CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
@@ -81,5 +82,49 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Current user profile returned' })
   async getProfile(@CurrentUser('userId') userId: string) {
     return this.authService.getProfile(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Patch('profile')
+  @ApiOperation({ summary: 'Update profile details (name, phone)' })
+  @ApiResponse({ status: 200, description: 'Profile updated' })
+  async updateProfile(
+    @CurrentUser('userId') userId: string,
+    @Body() dto: UpdateProfileDto,
+    @Req() req: Request,
+  ) {
+    const clientIp = req.ip || req.socket.remoteAddress;
+    return this.authService.updateProfile(userId, dto, clientIp);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change account password with verification' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  async changePassword(
+    @CurrentUser('userId') userId: string,
+    @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
+  ) {
+    const clientIp = req.ip || req.socket.remoteAddress;
+    return this.authService.changePassword(userId, dto, clientIp);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Post('change-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change account email with password verification' })
+  @ApiResponse({ status: 200, description: 'Email changed successfully' })
+  async changeEmail(
+    @CurrentUser('userId') userId: string,
+    @Body() dto: ChangeEmailDto,
+    @Req() req: Request,
+  ) {
+    const clientIp = req.ip || req.socket.remoteAddress;
+    return this.authService.changeEmail(userId, dto, clientIp);
   }
 }

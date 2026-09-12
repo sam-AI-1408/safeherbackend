@@ -102,4 +102,64 @@ export class EmergencyService {
       responderRecord,
     };
   }
+
+  async resolveSos(eventId: string, responderUserId: string, notes?: string, clientIp?: string) {
+    const event = await this.prisma.emergencySosEvent.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Emergency SOS event not found');
+    }
+
+    await this.prisma.sosResponder.create({
+      data: {
+        sosEventId: eventId,
+        responderUserId,
+        acknowledgedAt: new Date(),
+        actionTaken: notes || 'Incident resolved by campus security responder',
+      },
+    });
+
+    const updated = await this.prisma.emergencySosEvent.update({
+      where: { id: eventId },
+      data: {
+        status: SosStatus.RESOLVED,
+        resolvedAt: new Date(),
+      },
+    });
+
+    await this.auditService.log({
+      actorUserId: responderUserId,
+      action: 'EMERGENCY_SOS_RESOLVED',
+      entityType: 'EmergencySosEvent',
+      entityId: eventId,
+      ipAddress: clientIp,
+      metadata: { notes },
+    });
+
+    return {
+      message: 'Emergency SOS event resolved successfully.',
+      event: updated,
+    };
+  }
+
+  async getSosHistory() {
+    return this.prisma.emergencySosEvent.findMany({
+      include: {
+        student: {
+          select: { id: true, name: true, phone: true, email: true, department: true },
+        },
+        responders: {
+          include: {
+            responder: {
+              select: { id: true, name: true, role: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
 }
