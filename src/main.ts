@@ -33,8 +33,10 @@ async function bootstrap() {
     allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',
   });
 
-  // 4. API Versioning / Prefix
-  app.setGlobalPrefix(apiPrefix);
+  // 4. API Versioning / Prefix (exclude root '/' for load-balancer/Render pings)
+  app.setGlobalPrefix(apiPrefix, {
+    exclude: ['/'],
+  });
 
   // 5. Global Validation Pipe
   app.useGlobalPipes(
