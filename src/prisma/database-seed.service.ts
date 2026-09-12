@@ -168,7 +168,87 @@ export class DatabaseSeedService implements OnModuleInit {
         });
       }
 
-      // 3. Default Complaint Categories
+      // 3. Master Campus Locations
+      const locations = [
+        {
+          building: 'Computer Science Block',
+          floor: '2nd Floor',
+          roomIdentifier: 'Room 204 (Algorithms Lab)',
+          qrSignature: 'QR_LOC_CSE_204',
+          departmentId: deptMap['CSE'],
+        },
+        {
+          building: 'Sarojini Girls Hostel Block A',
+          floor: 'Ground Floor',
+          roomIdentifier: 'North Wing Corridor & Lawn',
+          qrSignature: 'QR_LOC_GHOSTEL_A_NORTH',
+          departmentId: deptMap['HOSTEL'],
+        },
+        {
+          building: 'Central Knowledge Center',
+          floor: '1st Floor',
+          roomIdentifier: 'Reading Hall West',
+          qrSignature: 'QR_LOC_LIB_WEST',
+          departmentId: deptMap['LIBRARY'],
+        },
+        {
+          building: 'Main Campus Quadrangle',
+          floor: 'Ground Floor',
+          roomIdentifier: 'South Pathway (Near Sports Complex)',
+          qrSignature: 'QR_LOC_MAIN_QUAD_S',
+          departmentId: deptMap['FACILITIES'],
+        },
+        {
+          building: 'Electronics Block',
+          floor: '3rd Floor',
+          roomIdentifier: 'Embedded Systems Lab 302',
+          qrSignature: 'QR_LOC_ECE_302',
+          departmentId: deptMap['ECE'],
+        },
+        {
+          building: 'Women Safety Cell & ICC Office',
+          floor: 'Ground Floor',
+          roomIdentifier: 'Room 101 (Confidential Counseling Room)',
+          qrSignature: 'QR_LOC_WGSC_101',
+          departmentId: deptMap['WGSC'],
+        },
+        {
+          building: 'Campus Amenities & Cafeteria',
+          floor: 'Ground Floor',
+          roomIdentifier: 'Central Food Court & Seating Area',
+          qrSignature: 'QR_LOC_CAFE_COMMON',
+          departmentId: deptMap['FACILITIES'],
+        },
+        {
+          building: 'Campus Transit Hub',
+          floor: 'Ground Floor',
+          roomIdentifier: 'North Gate Shuttle Bay & Walkway',
+          qrSignature: 'QR_LOC_TRANS_BAY',
+          departmentId: deptMap['TRANSPORT'],
+        },
+      ];
+
+      for (const loc of locations) {
+        await this.prisma.location.upsert({
+          where: { qrSignature: loc.qrSignature },
+          update: {
+            building: loc.building,
+            floor: loc.floor,
+            roomIdentifier: loc.roomIdentifier,
+            departmentId: loc.departmentId,
+          },
+          create: {
+            building: loc.building,
+            floor: loc.floor,
+            roomIdentifier: loc.roomIdentifier,
+            qrSignature: loc.qrSignature,
+            departmentId: loc.departmentId,
+          },
+        });
+      }
+      this.logger.log('Campus locations verified.');
+
+      // 4. Default Complaint Categories
       const categories = [
         {
           code: 'WOMEN_HARASSMENT',
