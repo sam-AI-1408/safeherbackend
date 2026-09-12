@@ -1,6 +1,10 @@
-const EmbeddedPostgres = require('embedded-postgres').default || require('embedded-postgres');
-const path = require('path');
-const fs = require('fs');
+let EmbeddedPostgres;
+try {
+  EmbeddedPostgres = require('embedded-postgres').default || require('embedded-postgres');
+} catch (_) {
+  console.log('ℹ️ embedded-postgres is not installed. Use standard PostgreSQL via DATABASE_URL or install embedded-postgres for local development.');
+  process.exit(0);
+}
 
 const dataDir = path.resolve(__dirname, '..', '.pgdata');
 
