@@ -18,11 +18,21 @@ export class HealthController {
     let dbStatus = 'healthy';
     let dbError: string | undefined;
 
-    try {
-      await this.prisma.$queryRaw`SELECT 1`;
-    } catch (error) {
-      dbStatus = 'degraded_or_unreachable';
-      dbError = error.message;
+    if (!this.prisma.isDatabaseConfigured()) {
+      dbStatus = 'missing_configuration';
+      dbError = 'DATABASE_URL environment variable is not configured. Please add DATABASE_URL in your Render Web Service Environment settings.';
+    } else {
+      try {
+        await Promise.race([
+          this.prisma.$queryRaw`SELECT 1`,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Database query timed out')), 3000),
+          ),
+        ]);
+      } catch (error) {
+        dbStatus = 'unreachable';
+        dbError = 'PostgreSQL database server is unreachable or timed out. Ensure Render database service is active.';
+      }
     }
 
     const memoryUsage = process.memoryUsage();

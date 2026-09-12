@@ -6,137 +6,169 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting SafeHer Campus Database Seeding...');
 
-  // 1. Clean existing seed records if any
-  await prisma.auditLog.deleteMany();
-  await prisma.feedback.deleteMany();
-  await prisma.attachment.deleteMany();
-  await prisma.internalCaseNote.deleteMany();
-  await prisma.caseAccessGrant.deleteMany();
-  await prisma.complaintAssignment.deleteMany();
-  await prisma.complaintTransfer.deleteMany();
-  await prisma.complaintStatusHistory.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.task.deleteMany();
-  await prisma.complaint.deleteMany();
-  await prisma.sosResponder.deleteMany();
-  await prisma.emergencySosEvent.deleteMany();
-  await prisma.emergencyContact.deleteMany();
-  await prisma.safetyResource.deleteMany();
-  await prisma.institutionSetting.deleteMany();
-  await prisma.deviceToken.deleteMany();
-  await prisma.session.deleteMany();
-  await prisma.location.deleteMany();
-  await prisma.complaintCategory.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.department.deleteMany();
+  const isProduction = process.env.NODE_ENV === 'production';
+  const shouldPurge = !isProduction && process.env.RESET_DB === 'true';
 
-  console.log('🧹 Purged existing tables');
+  if (shouldPurge) {
+    console.log('🧹 Purging existing test records (RESET_DB=true)...');
+    await prisma.auditLog.deleteMany();
+    await prisma.feedback.deleteMany();
+    await prisma.attachment.deleteMany();
+    await prisma.internalCaseNote.deleteMany();
+    await prisma.caseAccessGrant.deleteMany();
+    await prisma.complaintAssignment.deleteMany();
+    await prisma.complaintTransfer.deleteMany();
+    await prisma.complaintStatusHistory.deleteMany();
+    await prisma.notification.deleteMany();
+    await prisma.task.deleteMany();
+    await prisma.complaint.deleteMany();
+    await prisma.sosResponder.deleteMany();
+    await prisma.emergencySosEvent.deleteMany();
+    await prisma.emergencyContact.deleteMany();
+    await prisma.safetyResource.deleteMany();
+    await prisma.institutionSetting.deleteMany();
+    await prisma.deviceToken.deleteMany();
+    await prisma.session.deleteMany();
+    await prisma.location.deleteMany();
+    await prisma.complaintCategory.deleteMany();
+    await prisma.user.deleteMany();
+    await prisma.department.deleteMany();
+    console.log('🧹 Purged existing tables');
+  } else {
+    console.log('🔒 Production-safe mode: Preserving existing tables and users (no records deleted)');
+  }
 
-  // 2. Create Master Campus Departments
-  const deptCSE = await prisma.department.create({
-    data: {
+  // 2. Create Master Campus Departments (Idempotent upsert)
+  const deptCSE = await prisma.department.upsert({
+    where: { code: 'CSE' },
+    update: {},
+    create: {
       name: 'Computer Science & Engineering',
       code: 'CSE',
       isActive: true,
     },
   });
 
-  const deptECE = await prisma.department.create({
-    data: {
+  const deptECE = await prisma.department.upsert({
+    where: { code: 'ECE' },
+    update: {},
+    create: {
       name: 'Electronics & Communication Engineering',
       code: 'ECE',
       isActive: true,
     },
   });
 
-  const deptEEE = await prisma.department.create({
-    data: {
+  const deptEEE = await prisma.department.upsert({
+    where: { code: 'EEE' },
+    update: {},
+    create: {
       name: 'Electrical & Electronics Engineering',
       code: 'EEE',
       isActive: true,
     },
   });
 
-  const deptMech = await prisma.department.create({
-    data: {
+  const deptMech = await prisma.department.upsert({
+    where: { code: 'MECH' },
+    update: {},
+    create: {
       name: 'Mechanical Engineering',
       code: 'MECH',
       isActive: true,
     },
   });
 
-  const deptCivil = await prisma.department.create({
-    data: {
+  const deptCivil = await prisma.department.upsert({
+    where: { code: 'CIVIL' },
+    update: {},
+    create: {
       name: 'Civil Engineering',
       code: 'CIVIL',
       isActive: true,
     },
   });
 
-  const deptFacilities = await prisma.department.create({
-    data: {
+  const deptFacilities = await prisma.department.upsert({
+    where: { code: 'FACILITIES' },
+    update: {},
+    create: {
       name: 'Campus Facilities & Maintenance',
       code: 'FACILITIES',
       isActive: true,
     },
   });
 
-  const deptWomenCell = await prisma.department.create({
-    data: {
+  const deptWomenCell = await prisma.department.upsert({
+    where: { code: 'WGSC' },
+    update: {},
+    create: {
       name: 'Women Safety Cell & Student Welfare',
       code: 'WGSC',
       isActive: true,
     },
   });
 
-  const deptLibrary = await prisma.department.create({
-    data: {
+  const deptLibrary = await prisma.department.upsert({
+    where: { code: 'LIBRARY' },
+    update: {},
+    create: {
       name: 'Central Library Services',
       code: 'LIBRARY',
       isActive: true,
     },
   });
 
-  const deptHostel = await prisma.department.create({
-    data: {
+  const deptHostel = await prisma.department.upsert({
+    where: { code: 'HOSTEL' },
+    update: {},
+    create: {
       name: 'Hostel Administration & Residential Life',
       code: 'HOSTEL',
       isActive: true,
     },
   });
 
-  const deptTransport = await prisma.department.create({
-    data: {
+  const deptTransport = await prisma.department.upsert({
+    where: { code: 'TRANSPORT' },
+    update: {},
+    create: {
       name: 'Campus Transport Services',
       code: 'TRANSPORT',
       isActive: true,
     },
   });
 
-  const deptSecurity = await prisma.department.create({
-    data: {
+  const deptSecurity = await prisma.department.upsert({
+    where: { code: 'SECURITY' },
+    update: {},
+    create: {
       name: 'Campus Security & Surveillance',
       code: 'SECURITY',
       isActive: true,
     },
   });
 
-  const deptAdmin = await prisma.department.create({
-    data: {
+  const deptAdmin = await prisma.department.upsert({
+    where: { code: 'ADMIN_DEPT' },
+    update: {},
+    create: {
       name: 'Administration & Student Affairs',
       code: 'ADMIN_DEPT',
       isActive: true,
     },
   });
 
-  console.log('🏢 Master Campus Departments created');
+  console.log('🏢 Master Campus Departments initialized (idempotent)');
 
   // 3. Create Seed Users for All Roles (Default demo password: "Password@123")
   const defaultPasswordHash = await bcrypt.hash('Password@123', 10);
 
   // Student 1 (Priya Sharma)
-  const student1 = await prisma.user.create({
-    data: {
+  const student1 = await prisma.user.upsert({
+    where: { email: 'student@safeher.test' },
+    update: {},
+    create: {
       email: 'student@safeher.test',
       name: 'Priya Sharma',
       phone: '+919876543201',
@@ -148,8 +180,10 @@ async function main() {
   });
 
   // Student 2 (Ananya Verma)
-  const student2 = await prisma.user.create({
-    data: {
+  const student2 = await prisma.user.upsert({
+    where: { email: 'student2@safeher.test' },
+    update: {},
+    create: {
       email: 'student2@safeher.test',
       name: 'Ananya Verma',
       phone: '+919876543202',
@@ -161,8 +195,10 @@ async function main() {
   });
 
   // HOD Computer Science (Dr. Ramesh Kumar)
-  const hodCSE = await prisma.user.create({
-    data: {
+  const hodCSE = await prisma.user.upsert({
+    where: { email: 'hod.cs@safeher.test' },
+    update: {},
+    create: {
       email: 'hod.cs@safeher.test',
       name: 'Dr. Ramesh Kumar',
       phone: '+919876543210',
@@ -179,8 +215,10 @@ async function main() {
   });
 
   // HOD Electronics & Communication (Dr. Arvind Swaminathan)
-  const hodECE = await prisma.user.create({
-    data: {
+  const hodECE = await prisma.user.upsert({
+    where: { email: 'hod.ece@safeher.test' },
+    update: {},
+    create: {
       email: 'hod.ece@safeher.test',
       name: 'Dr. Arvind Swaminathan',
       phone: '+919876543211',
@@ -197,8 +235,10 @@ async function main() {
   });
 
   // HOD Electrical Engineering (Dr. Suresh Reddy)
-  const hodEEE = await prisma.user.create({
-    data: {
+  const hodEEE = await prisma.user.upsert({
+    where: { email: 'hod.eee@safeher.test' },
+    update: {},
+    create: {
       email: 'hod.eee@safeher.test',
       name: 'Dr. Suresh Reddy',
       phone: '+919876543212',
@@ -215,8 +255,10 @@ async function main() {
   });
 
   // Women Safety / ICC Officer (Dr. Meenakshi Sundaram)
-  const safetyOfficer = await prisma.user.create({
-    data: {
+  const safetyOfficer = await prisma.user.upsert({
+    where: { email: 'safetyofficer@safeher.test' },
+    update: {},
+    create: {
       email: 'safetyofficer@safeher.test',
       name: 'Dr. Meenakshi Sundaram',
       phone: '+919876543220',
@@ -228,8 +270,10 @@ async function main() {
   });
 
   // Also support safety@safeher.test alias
-  await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { email: 'safety@safeher.test' },
+    update: {},
+    create: {
       email: 'safety@safeher.test',
       name: 'Dr. Meenakshi Sundaram (Cell Lead)',
       phone: '+919876543221',
@@ -246,8 +290,10 @@ async function main() {
   });
 
   // Principal / Senior Authority (Dr. Rajeshwar Rao)
-  const principal = await prisma.user.create({
-    data: {
+  const principal = await prisma.user.upsert({
+    where: { email: 'principal@safeher.test' },
+    update: {},
+    create: {
       email: 'principal@safeher.test',
       name: 'Dr. Rajeshwar Rao',
       phone: '+919876543230',
@@ -258,8 +304,10 @@ async function main() {
   });
 
   // Authorized Staff (Suresh Naik - Maintenance Technician)
-  const staffUser = await prisma.user.create({
-    data: {
+  const staffUser = await prisma.user.upsert({
+    where: { email: 'staff@safeher.test' },
+    update: {},
+    create: {
       email: 'staff@safeher.test',
       name: 'Suresh Naik',
       phone: '+919876543240',
@@ -271,8 +319,10 @@ async function main() {
   });
 
   // System Administrator (Admin)
-  const adminUser = await prisma.user.create({
-    data: {
+  const adminUser = await prisma.user.upsert({
+    where: { email: 'admin@safeher.test' },
+    update: {},
+    create: {
       email: 'admin@safeher.test',
       name: 'System Administrator',
       phone: '+919876543299',
@@ -284,9 +334,11 @@ async function main() {
 
   console.log('👥 Demo accounts initialized for all roles');
 
-  // 4. Create Campus Locations with QR Signatures
-  const locRoom204 = await prisma.location.create({
-    data: {
+  // 4. Create Campus Locations with QR Signatures (Idempotent upsert)
+  const locRoom204 = await prisma.location.upsert({
+    where: { qrSignature: 'QR_LOC_CSE_204' },
+    update: {},
+    create: {
       building: 'Computer Science Block',
       floor: '2nd Floor',
       roomIdentifier: 'Room 204 (Algorithms Lab)',
@@ -295,8 +347,10 @@ async function main() {
     },
   });
 
-  const locHostelA = await prisma.location.create({
-    data: {
+  const locHostelA = await prisma.location.upsert({
+    where: { qrSignature: 'QR_LOC_GHOSTEL_A_NORTH' },
+    update: {},
+    create: {
       building: 'Sarojini Girls Hostel Block A',
       floor: 'Ground Floor',
       roomIdentifier: 'North Wing Corridor & Lawn',
@@ -305,8 +359,10 @@ async function main() {
     },
   });
 
-  const locLibrary = await prisma.location.create({
-    data: {
+  const locLibrary = await prisma.location.upsert({
+    where: { qrSignature: 'QR_LOC_LIB_WEST' },
+    update: {},
+    create: {
       building: 'Central Knowledge Center',
       floor: '1st Floor',
       roomIdentifier: 'Reading Hall West',
@@ -315,8 +371,10 @@ async function main() {
     },
   });
 
-  const locQuad = await prisma.location.create({
-    data: {
+  const locQuad = await prisma.location.upsert({
+    where: { qrSignature: 'QR_LOC_MAIN_QUAD_S' },
+    update: {},
+    create: {
       building: 'Main Campus Quadrangle',
       floor: 'Ground',
       roomIdentifier: 'South Pathway (Near Sports Complex)',
@@ -325,11 +383,13 @@ async function main() {
     },
   });
 
-  console.log('📍 Campus locations configured');
+  console.log('📍 Campus locations configured (idempotent)');
 
-  // 5. Create Complaint Categories (90% Women's Safety + 10% Campus Infrastructure)
-  const catHarassment = await prisma.complaintCategory.create({
-    data: {
+  // 5. Create Complaint Categories (Idempotent upsert)
+  const catHarassment = await prisma.complaintCategory.upsert({
+    where: { code: 'WOMEN_HARASSMENT' },
+    update: {},
+    create: {
       name: 'Harassment & Inappropriate Behavior',
       code: 'WOMEN_HARASSMENT',
       isWomensSafety: true,
@@ -340,8 +400,10 @@ async function main() {
     },
   });
 
-  const catStalking = await prisma.complaintCategory.create({
-    data: {
+  const catStalking = await prisma.complaintCategory.upsert({
+    where: { code: 'WOMEN_STALKING' },
+    update: {},
+    create: {
       name: 'Stalking, Threat & Intimidation',
       code: 'WOMEN_STALKING',
       isWomensSafety: true,
@@ -352,8 +414,10 @@ async function main() {
     },
   });
 
-  const catUnsafeArea = await prisma.complaintCategory.create({
-    data: {
+  const catUnsafeArea = await prisma.complaintCategory.upsert({
+    where: { code: 'WOMEN_UNSAFE_AREA' },
+    update: {},
+    create: {
       name: 'Unsafe Campus Zone / Poor Lighting',
       code: 'WOMEN_UNSAFE_AREA',
       isWomensSafety: true,
@@ -364,8 +428,10 @@ async function main() {
     },
   });
 
-  const catHostelSafety = await prisma.complaintCategory.create({
-    data: {
+  const catHostelSafety = await prisma.complaintCategory.upsert({
+    where: { code: 'WOMEN_HOSTEL_SAFETY' },
+    update: {},
+    create: {
       name: 'Hostel & Residential Safety Concern',
       code: 'WOMEN_HOSTEL_SAFETY',
       isWomensSafety: true,
@@ -376,8 +442,10 @@ async function main() {
     },
   });
 
-  const catSanitation = await prisma.complaintCategory.create({
-    data: {
+  const catSanitation = await prisma.complaintCategory.upsert({
+    where: { code: 'WOMEN_SANITATION' },
+    update: {},
+    create: {
       name: 'Restroom Hygiene & Menstrual Support',
       code: 'WOMEN_SANITATION',
       isWomensSafety: true,
@@ -388,8 +456,10 @@ async function main() {
     },
   });
 
-  const catElectrical = await prisma.complaintCategory.create({
-    data: {
+  const catElectrical = await prisma.complaintCategory.upsert({
+    where: { code: 'CAMPUS_ELECTRICAL' },
+    update: {},
+    create: {
       name: 'Electrical Maintenance & Faults',
       code: 'CAMPUS_ELECTRICAL',
       isWomensSafety: false,
@@ -400,8 +470,10 @@ async function main() {
     },
   });
 
-  const catLabEquipment = await prisma.complaintCategory.create({
-    data: {
+  const catLabEquipment = await prisma.complaintCategory.upsert({
+    where: { code: 'CAMPUS_LAB_EQUIPMENT' },
+    update: {},
+    create: {
       name: 'Classroom & Laboratory Equipment',
       code: 'CAMPUS_LAB_EQUIPMENT',
       isWomensSafety: false,
@@ -412,96 +484,106 @@ async function main() {
     },
   });
 
-  console.log('🏷️ Complaint categories initialized');
+  console.log('🏷️ Complaint categories initialized (idempotent)');
 
-  // 6. Seed Emergency Contacts
-  await prisma.emergencyContact.createMany({
-    data: [
-      {
-        name: 'Campus 24/7 Security Control Room',
-        roleTitle: 'Chief Security Officer',
-        phoneNumber: '+91-11-22334455',
-        priorityOrder: 1,
-        isActive: true,
-      },
-      {
-        name: 'National Women Helpline (24/7 Toll-Free)',
-        roleTitle: 'Government of India Emergency Support',
-        phoneNumber: '1091',
-        priorityOrder: 2,
-        isActive: true,
-      },
-      {
-        name: 'National Emergency Response System',
-        roleTitle: 'Police / Medical / Fire Emergency',
-        phoneNumber: '112',
-        priorityOrder: 3,
-        isActive: true,
-      },
-      {
-        name: 'Campus Health Center & Ambulance',
-        roleTitle: 'Medical Resident Doctor',
-        phoneNumber: '+91-11-22339900',
-        priorityOrder: 4,
-        isActive: true,
-      },
-      {
-        name: 'Student Psychological Counseling Cell',
-        roleTitle: 'Resident Counselor',
-        phoneNumber: '+91-9876543290',
-        priorityOrder: 5,
-        isActive: true,
-      },
-    ],
-  });
+  // 6. Seed Emergency Contacts (Idempotent)
+  const ecCount = await prisma.emergencyContact.count();
+  if (ecCount === 0) {
+    await prisma.emergencyContact.createMany({
+      data: [
+        {
+          name: 'Campus 24/7 Security Control Room',
+          roleTitle: 'Chief Security Officer',
+          phoneNumber: '+91-11-22334455',
+          priorityOrder: 1,
+          isActive: true,
+        },
+        {
+          name: 'National Women Helpline (24/7 Toll-Free)',
+          roleTitle: 'Government of India Emergency Support',
+          phoneNumber: '1091',
+          priorityOrder: 2,
+          isActive: true,
+        },
+        {
+          name: 'National Emergency Response System',
+          roleTitle: 'Police / Medical / Fire Emergency',
+          phoneNumber: '112',
+          priorityOrder: 3,
+          isActive: true,
+        },
+        {
+          name: 'Campus Health Center & Ambulance',
+          roleTitle: 'Medical Resident Doctor',
+          phoneNumber: '+91-11-22339900',
+          priorityOrder: 4,
+          isActive: true,
+        },
+        {
+          name: 'Student Psychological Counseling Cell',
+          roleTitle: 'Resident Counselor',
+          phoneNumber: '+91-9876543290',
+          priorityOrder: 5,
+          isActive: true,
+        },
+      ],
+    });
+    console.log('📞 Emergency contacts registered');
+  } else {
+    console.log('📞 Emergency contacts already configured');
+  }
 
-  console.log('📞 Emergency contacts registered');
-
-  // 7. Seed Statutory Safety Resources & Guides
-  await prisma.safetyResource.createMany({
-    data: [
-      {
-        category: ResourceCategory.INSTITUTIONAL_POLICY,
-        title: 'Institutional Internal Complaints Committee (ICC) & POSH Guidelines',
-        contentMarkdown: `### Policy Overview on Prevention of Sexual Harassment (POSH)
+  // 7. Seed Statutory Safety Resources & Guides (Idempotent)
+  const srCount = await prisma.safetyResource.count();
+  if (srCount === 0) {
+    await prisma.safetyResource.createMany({
+      data: [
+        {
+          category: ResourceCategory.INSTITUTIONAL_POLICY,
+          title: 'Institutional Internal Complaints Committee (ICC) & POSH Guidelines',
+          contentMarkdown: `### Policy Overview on Prevention of Sexual Harassment (POSH)
 1. **Mandate:** In compliance with the Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act, 2013 and UGC Regulations 2015, our institution maintains a zero-tolerance policy against sexual harassment.
 2. **Filing a Complaint:** Any aggrieved woman student or employee can submit a confidential complaint through the SafeHer Campus portal within 3 months of an incident.
 3. **Investigation Timeline:** The ICC conducts inquiries adhering to principles of natural justice and submits findings within 90 days.
 4. **Confidentiality:** Strict statutory confidentiality is maintained regarding the identity of the aggrieved woman, respondent, and witnesses.`,
-        sourceReference: 'UGC Regulations 2015 / POSH Act 2013',
-        lastReviewedDate: new Date('2026-01-15'),
-        isActive: true,
-      },
-      {
-        category: ResourceCategory.LEGAL_RIGHTS,
-        title: 'Statutory Protections under the Bharatiya Nyaya Sanhita (BNS)',
-        contentMarkdown: `### Key Statutory Provisions for Women's Safety
+          sourceReference: 'UGC Regulations 2015 / POSH Act 2013',
+          lastReviewedDate: new Date('2026-01-15'),
+          isActive: true,
+        },
+        {
+          category: ResourceCategory.LEGAL_RIGHTS,
+          title: 'Statutory Protections under the Bharatiya Nyaya Sanhita (BNS)',
+          contentMarkdown: `### Key Statutory Provisions for Women's Safety
 - **Stalking & Cyber-Stalking:** Section 78 of the Bharatiya Nyaya Sanhita covers monitoring woman's internet activity or physical following without consent.
 - **Outraging Modesty:** Section 74 & 75 covers assault, criminal force, or unwelcome sexual remarks.
 - **Voyeurism:** Section 77 penalizes capturing or sharing private images without consent.
 *Note: This material is provided for educational and legal awareness purposes only and does not constitute formal legal counsel.*`,
-        sourceReference: 'Bharatiya Nyaya Sanhita (BNS) 2023',
-        lastReviewedDate: new Date('2026-02-01'),
-        isActive: true,
-      },
-      {
-        category: ResourceCategory.SUPPORT_GUIDE,
-        title: 'Campus Late-Hour Safe-Walk & Security Escort Protocol',
-        contentMarkdown: `### Safe-Walk Services
+          sourceReference: 'Bharatiya Nyaya Sanhita (BNS) 2023',
+          lastReviewedDate: new Date('2026-02-01'),
+          isActive: true,
+        },
+        {
+          category: ResourceCategory.SUPPORT_GUIDE,
+          title: 'Campus Late-Hour Safe-Walk & Security Escort Protocol',
+          contentMarkdown: `### Safe-Walk Services
 - Students studying late in central libraries or engineering labs after 20:00 can request a security escort to their residential hostel by tapping the Emergency / Safety button in the SafeHer app or calling the control room at +91-11-22334455.
 - Designated illuminated safe corridors are patrolled continuously by security personnel between 18:00 and 06:00.`,
-        sourceReference: 'Campus Security Operational Standard Operating Procedures',
-        lastReviewedDate: new Date('2026-01-10'),
-        isActive: true,
-      },
-    ],
-  });
+          sourceReference: 'Campus Security Operational Standard Operating Procedures',
+          lastReviewedDate: new Date('2026-01-10'),
+          isActive: true,
+        },
+      ],
+    });
+    console.log('📖 Safety resources & legal awareness guides seeded');
+  } else {
+    console.log('📖 Safety resources already configured');
+  }
 
-  console.log('📖 Safety resources & legal awareness guides seeded');
-
-  // 8. Seed Institution Settings & Operating Calendar
-  await prisma.institutionSetting.create({
-    data: {
+  // 8. Seed Institution Settings & Operating Calendar (Idempotent upsert)
+  await prisma.institutionSetting.upsert({
+    where: { key: 'INSTITUTION_OPERATING_CALENDAR' },
+    update: {},
+    create: {
       key: 'INSTITUTION_OPERATING_CALENDAR',
       valueJson: {
         institutionName: 'SafeHer Model University & Technical Campus',
@@ -527,11 +609,15 @@ async function main() {
     },
   });
 
-  console.log('⚙️ Institutional configuration initialized');
+  console.log('⚙️ Institutional configuration initialized (idempotent)');
 
-  // 9. Seed Realistic Demo Complaints across Departments & Roles
-  // Complaint 1: CSE Department - Broken Lab Terminal & Faulty Wiring (SUBMITTED)
-  const cmp1 = await prisma.complaint.create({
+  // 9. Seed Demo Complaints across Departments & Roles (Development / Testing Only)
+  if (!isProduction) {
+    const existingComplaints = await prisma.complaint.count();
+    if (existingComplaints === 0) {
+      console.log('🧪 Seeding realistic demo complaints, action tasks, and notifications for development/testing...');
+      // Complaint 1: CSE Department - Broken Lab Terminal & Faulty Wiring (SUBMITTED)
+      const cmp1 = await prisma.complaint.create({
     data: {
       publicComplaintNumber: 'CMP-2026-000101',
       studentId: student1.id,
@@ -818,7 +904,14 @@ async function main() {
     ],
   });
 
-  console.log('🔔 Notifications seeded');
+      console.log('🔔 Notifications seeded');
+    } else {
+      console.log('ℹ️ Existing complaints found. Skipping demo grievance seeding.');
+    }
+  } else {
+    console.log('🛡️ Production mode: Mock complaints, fake history, and test tasks omitted.');
+  }
+
   console.log('✅ SafeHer Campus Seed Completed Successfully!');
 }
 
